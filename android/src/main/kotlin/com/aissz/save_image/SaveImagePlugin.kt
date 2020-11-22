@@ -42,13 +42,13 @@ public class SaveImagePlugin: FlutterPlugin, MethodCallHandler {
 
   override fun onMethodCall(call: MethodCall, result: Result) {
     when (call.method) {
-        "saveImageToGallery" -> {
-          val image = call.argument<ByteArray>("imageBytes") as ByteArray
-          result.success(saveImageToGallery(BitmapFactory.decodeByteArray(image,0,image.size)))
-        }
-        else -> result.notImplemented()
+      "saveAssetToGallery" -> {
+        val filePath = call.argument<ByteArray>("path") as String
+        val videoMark = call.argument<ByteArray>("videoMark") as Boolean
+        result.success(saveAsset(filePath, videoMark))
+      }
+      else -> result.notImplemented()
     }
-
   }
 
   private fun String.generateFile(): File {
@@ -64,17 +64,21 @@ public class SaveImagePlugin: FlutterPlugin, MethodCallHandler {
     return File(appDir, fileName)
   }
 
-  private fun saveImageToGallery(bmp: Bitmap): Boolean {
+  private fun saveAsset(filePath: String, videoMark: Boolean): Boolean {
     try {
-    val context = applicationContext
-    val file = "png".generateFile()
-      val fos = FileOutputStream(file)
-      bmp.compress(Bitmap.CompressFormat.PNG, 60, fos)
-      fos.flush()
-      fos.close()
-      val uri = Uri.fromFile(file)
+      //val context = applicationContext
+      //val file = "png".generateFile()
+      //val fos = FileOutputStream(file)
+      //fos.flush()
+      //fos.close()
+      //val uri = Uri.fromFile(file)
+      val storePath =  Environment.getExternalStorageDirectory().absolutePath + File.separator + Environment.DIRECTORY_DCIM
+      val extension = filePath.substringAfterLast('.')
+      val filename = "$storePath/${System.currentTimeMillis()}.$extension"
+      print("filename: $filename")
+      File(filePath).copyTo(File(filename))
       // MediaStore.Images.Media.insertImage(context?.contentResolver, bmp, "", "")
-      context?.sendBroadcast(Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri))
+      // context?.sendBroadcast(Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, uri))
       return true
     } catch (e: IOException) {
       e.printStackTrace()
