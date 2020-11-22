@@ -41,20 +41,20 @@
                                     details:nil]);
         _result = nil;
     }
-    if ([@"saveImageToGallery" isEqualToString:call.method]) {
+    if ([@"saveAssetToGallery" isEqualToString:call.method]) {
         _result = result;
         _arguments = call.arguments;
-        FlutterStandardTypedData* fileData = [_arguments objectForKey:@"imageBytes"] ;
-        UIImage *image=[UIImage imageWithData:fileData.data];
+        NSString* filePath = [_arguments objectForKey:@"path"] ;
+        BOOL videoMark = [[_arguments objectForKey:@"videoMark"] boolValue];
         PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
         if (status == PHAuthorizationStatusRestricted) {
         } else if (status == PHAuthorizationStatusDenied) { 
         } else if (status == PHAuthorizationStatusAuthorized) {
-            [self saveImage:image];
+            [self saveAsset:filePath isVideo:videoMark];
         } else if (status == PHAuthorizationStatusNotDetermined) {
             [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
                 if (status == PHAuthorizationStatusAuthorized) {
-                    [self saveImage:image];
+                    [self saveAsset:filePath isVideo:videoMark];
                 }
             }];
         }
@@ -64,22 +64,29 @@
     }
 }
 
--(void)saveImage:(UIImage *)image  {
-    __block NSString* localId;
-    [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-        PHAssetChangeRequest *assetChangeRequest = [PHAssetChangeRequest creationRequestForAssetFromImage:image];
-        localId = [[assetChangeRequest placeholderForCreatedAsset] localIdentifier];
-    } completionHandler:^(BOOL success, NSError *error) {
-        if (success) {
-            PHFetchResult* assetResult = [PHAsset fetchAssetsWithLocalIdentifiers:@[localId] options:nil];
-            PHAsset *asset = [assetResult firstObject];
-            [[PHImageManager defaultManager] requestImageDataForAsset:asset options:nil resultHandler:^(NSData *imageData, NSString *dataUTI, UIImageOrientation orientation, NSDictionary *info) {
-                self->_result([NSNumber numberWithBool:1]);
-            }];
-        } else {
-           self->_result([NSNumber numberWithBool:0]);
-        }
-    }];
+-(void)saveAsset:(NSString *)assetPath isVideo:(BOOL)videoMark {
+  __block NSString *localId;
+  
+  [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+    NSURL *fileUrl = [NSURL fileURLWithPath:assetPath];
+    PHAssetChangeRequest* assetChangeRequest = nil;
+    if (videoMark) {
+      assetChangeRequest = [PHAssetChangeRequest creationRequestForAssetFromVideoAtFileURL:fileUrl];
+    } else {
+      assetChangeRequest = [PHAssetChangeRequest creationRequestForAssetFromImageAtFileURL:fileUrl];
+    }
+    localId = [[assetChangeRequest placeholderForCreatedAsset] localIdentifier];
+  } completionHandler:^(BOOL success, NSError *error) {
+    if (success) {
+      PHFetchResult* fetchResult = [PHAsset fetchAssetsWithLocalIdentifiers:@[localId] options:nil];
+      PHAsset* asset = [fetchResult firstObject];
+      [[PHImageManager defaultManager] requestImageDataForAsset:asset options:nil resultHandler:^(NSData *imageData, NSString *dataUTI, UIImageOrientation orientation, NSDictionary *info) {
+          self->_result([NSNumber numberWithBool:1]);
+      }];
+    } else {
+      self->_result([NSNumber numberWithBool:0]);
+   }
+  }];
 }
 
 @end
